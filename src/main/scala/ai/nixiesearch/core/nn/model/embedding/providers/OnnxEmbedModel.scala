@@ -59,7 +59,7 @@ case class OnnxEmbedModel(
     val attMask      = encoded.flatMap(e => e.getAttentionMask)
 
     val tensorDim = Array(batch.length.toLong, encoded(0).getIds.length)
-    val argsList = inputTensorNames.map {
+    val argsList  = inputTensorNames.map {
       case "input_ids"      => OnnxTensor.createTensor(env, LongBuffer.wrap(tokens), tensorDim)
       case "token_type_ids" => OnnxTensor.createTensor(env, LongBuffer.wrap(tokenTypes), tensorDim)
       case "attention_mask" => OnnxTensor.createTensor(env, LongBuffer.wrap(attMask), tensorDim)
@@ -67,9 +67,9 @@ case class OnnxEmbedModel(
       case "task_id" => OnnxTensor.createTensor(env, LongBuffer.wrap(Array(4L)), Array(1L))
       case other     => throw Exception(s"input $other not supported")
     }
-    val args   = inputTensorNames.zip(argsList).toMap
-    val result = session.run(args.asJava)
-    val tensor = result.get(0).getValue.asInstanceOf[Array[Array[Array[Float]]]]
+    val args       = inputTensorNames.zip(argsList).toMap
+    val result     = session.run(args.asJava)
+    val tensor     = result.get(0).getValue.asInstanceOf[Array[Array[Array[Float]]]]
     val normalized = config.pooling match {
       case PoolingType.MeanPooling => EmbedPooling.mean(tensor, tokenLengths, dim, config.normalize)
       case PoolingType.CLSPooling  => EmbedPooling.cls(tensor, tokenLengths, dim, config.normalize)
@@ -100,7 +100,7 @@ object OnnxEmbedModel extends Logging {
 
     object OnnxModelFile {
       given onnxModelFileEncoder: Encoder[OnnxModelFile] = Encoder.instance {
-        case OnnxModelFile(base, None) => Json.fromString(base)
+        case OnnxModelFile(base, None)       => Json.fromString(base)
         case OnnxModelFile(base, Some(data)) =>
           Json.obj("base" -> Json.fromString(base), "data" -> Json.fromString(data))
       }
@@ -108,7 +108,7 @@ object OnnxEmbedModel extends Logging {
       given onnxModelDecoder: Decoder[OnnxModelFile] = Decoder.instance(c =>
         c.as[String] match {
           case Right(value) => Right(OnnxModelFile(value))
-          case Left(_) =>
+          case Left(_)      =>
             for {
               base <- c.downField("base").as[String]
               data <- c.downField("data").as[Option[String]]
@@ -128,21 +128,21 @@ object OnnxEmbedModel extends Logging {
       conf: OnnxEmbeddingInferenceModelConfig,
       cache: ModelFileCache
   ): Resource[IO, EmbedModel] = for {
-    hf <- HuggingFaceClient.create(cache)
+    hf                           <- HuggingFaceClient.create(cache)
     (model, data, vocab, config) <- Resource.eval(for {
-      card      <- hf.model(handle)
-      modelFile <- chooseModelFile(card.siblings.map(_.rfilename), conf.file)
+      card          <- hf.model(handle)
+      modelFile     <- chooseModelFile(card.siblings.map(_.rfilename), conf.file)
       tokenizerFile <- IO.fromOption(card.siblings.map(_.rfilename).find(_ == "tokenizer.json"))(
         BackendError("Cannot find tokenizer.json in repo")
       )
-      _         <- info(s"Fetching $handle from HF: model=$modelFile tokenizer=$tokenizerFile")
-      modelPath <- hf.getCached(handle, modelFile.base)
+      _                  <- info(s"Fetching $handle from HF: model=$modelFile tokenizer=$tokenizerFile")
+      modelPath          <- hf.getCached(handle, modelFile.base)
       maybeModelDataPath <- modelFile.data match {
         case None       => IO.none
         case Some(data) => hf.getCached(handle, data).map(Option.apply)
       }
       vocabPath <- hf.getCached(handle, tokenizerFile)
-      config <- hf
+      config    <- hf
         .getCached(handle, CONFIG_FILE)
         .flatMap(path => IO.fromEither(decode[TransformersConfig](NIOFiles.readString(path))))
     } yield {
@@ -160,9 +160,9 @@ object OnnxEmbedModel extends Logging {
   def createLocal(handle: LocalModelHandle, conf: OnnxEmbeddingInferenceModelConfig): Resource[IO, EmbedModel] = {
     for {
       (model, modelData, vocab, config) <- Resource.eval(for {
-        path      <- IO(Fs2Path(handle.dir))
-        files     <- fs2.io.file.Files[IO].list(path).map(_.fileName.toString).compile.toList
-        modelFile <- chooseModelFile(files, conf.file)
+        path          <- IO(Fs2Path(handle.dir))
+        files         <- fs2.io.file.Files[IO].list(path).map(_.fileName.toString).compile.toList
+        modelFile     <- chooseModelFile(files, conf.file)
         tokenizerFile <- IO.fromOption(files.find(_ == "tokenizer.json"))(
           BackendError("cannot find tokenizer.json file in dir")
         )
@@ -194,13 +194,13 @@ object OnnxEmbedModel extends Logging {
     "model.onnx"
   )
 
-  val DEFAULT_MODEL_EXT = Set("onnx", "onnx_data")
+  val DEFAULT_MODEL_EXT                                                                      = Set("onnx", "onnx_data")
   def chooseModelFile(files: List[String], forced: Option[OnnxModelFile]): IO[OnnxModelFile] = {
     forced match {
       case Some(f) => IO.pure(f)
-      case None =>
+      case None    =>
         files.filter(_.endsWith(".onnx")) match {
-          case Nil => IO.raiseError(UserError(s"no ONNX files found in the repo. files=$files"))
+          case Nil           => IO.raiseError(UserError(s"no ONNX files found in the repo. files=$files"))
           case base :: other =>
             if (other.nonEmpty) {
               logger.warn(s"multiple ONNX files found in the repo: choosing $base (and ignoring $other)")
@@ -228,7 +228,7 @@ object OnnxEmbedModel extends Logging {
   ): Resource[IO, OnnxEmbedModel] = for {
     isGPUBuild <- Resource.eval(IO(GPUUtils.isGPUBuild()))
     _          <- Resource.eval(IO.whenA(isGPUBuild)(info(s"Embedding model scheduled for GPU inference")))
-    model <- Resource.make(
+    model      <- Resource.make(
       IO(createUnsafe(model, dic, dim, isGPUBuild, threads, config))
     )(e => debug(s"closing ONNX session ${config.model}") *> IO(e.session.close()))
   } yield {

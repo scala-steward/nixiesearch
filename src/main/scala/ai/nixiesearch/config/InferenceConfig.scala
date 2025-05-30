@@ -34,7 +34,7 @@ case class InferenceConfig(
 object InferenceConfig {
   case class PromptConfig(doc: String = "", query: String = "")
   object PromptConfig extends Logging {
-    val E5 = PromptConfig("passage: ", "query: ")
+    val E5                                      = PromptConfig("passage: ", "query: ")
     def apply(model: ModelHandle): PromptConfig = {
       model match {
         case hf: HuggingFaceHandle =>
@@ -117,9 +117,9 @@ object InferenceConfig {
         case Right(Some("onnx"))   => onnxEmbeddingConfigDecoder.tryDecode(c)
         case Right(Some("openai")) => openAIEmbeddingConfigDecoder.tryDecode(c)
         case Right(Some("cohere")) => cohereEmbeddingConfigDecoder.tryDecode(c)
-        case Right(None) =>
+        case Right(None)           =>
           c.downField("model").as[Option[String]] match {
-            case Left(err) => Left(err)
+            case Left(err)                                                               => Left(err)
             case Right(Some(model)) if OpenAIEmbedModel.SUPPORTED_MODELS.contains(model) =>
               logger.debug(
                 s"model $model looks like an OpenAI model (please override with provider: smth if detection went wrong"
@@ -196,7 +196,7 @@ object InferenceConfig {
       c.downField("provider").as[String] match {
         case Left(err)         => Left(err)
         case Right("llamacpp") => llamacppInferenceModelConfigDecoder.tryDecode(c)
-        case Right(other) =>
+        case Right(other)      =>
           Left(DecodingFailure(s"completion provider '$other' not supported yet. Maybe try 'llamacpp'?", c.history))
       }
     )

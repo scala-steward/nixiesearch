@@ -62,7 +62,7 @@ object RerankQuery {
               case tpe @ "rrf" => c.downField(tpe).as[RRFQuery]
               case other       => Left(DecodingFailure(s"query type $other not supported", c.history))
             }
-          case Nil => Left(DecodingFailure(s"query should contain a type, but got empty object", c.history))
+          case Nil   => Left(DecodingFailure(s"query should contain a type, but got empty object", c.history))
           case other =>
             Left(DecodingFailure(s"query json object should contain exactly one key, but got $other", c.history))
         }

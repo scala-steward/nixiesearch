@@ -16,7 +16,7 @@ case class RRFQuery(queries: List[Query], k: Float = 60.0f, window: Option[Int] 
   override def combine(docs: List[TopDocs], size: Int): IO[TopDocs] = docs match {
     case head :: Nil => IO.pure(head)
     case Nil         => IO.raiseError(BackendError(s"cannot merge zero query results"))
-    case list =>
+    case list        =>
       IO {
         val docScores = mutable.Map[ShardDoc, Float]()
         for {
